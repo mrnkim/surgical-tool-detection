@@ -27,6 +27,14 @@ import ClickableVideo from './ClickableVideo';
 import ClipChat from './ClipChat';
 import ChapterTimeline from './ChapterTimeline';
 
+// Optional default geolocation (configure via NEXT_PUBLIC_DEFAULT_LAT/LON)
+const DEFAULT_LAT = parseFloat(process.env.NEXT_PUBLIC_DEFAULT_LAT || '');
+const DEFAULT_LON = parseFloat(process.env.NEXT_PUBLIC_DEFAULT_LON || '');
+const HAS_DEFAULT_GEO = Number.isFinite(DEFAULT_LAT) && Number.isFinite(DEFAULT_LON);
+const DEFAULT_GEOLOCATION = HAS_DEFAULT_GEO
+    ? { coords: { latitude: DEFAULT_LAT, longitude: DEFAULT_LON } }
+    : null;
+
 export default function ClipBento({ clipData, buttonMetadata, videoId }) {
     const [forensicsData, setForensicsData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -116,28 +124,12 @@ export default function ClipBento({ clipData, buttonMetadata, videoId }) {
         }
     };
 
-    function getGeolocation() {
-        if (navigator.geolocation) {
-            return new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => resolve(position),
-                    (error) => reject(error),
-                    { timeout: 10000, enableHighAccuracy: false }
-                );
-            });
-        }
-        return Promise.resolve(null);
-    }
-
     async function generateComplianceReport() {
         setIsLoading(true);
         setReportGenerated(true);
 
         try {
-            const geolocation = await getGeolocation();
-            const locationContext = geolocation ? 
-                `Location: ${geolocation.coords.latitude}, ${geolocation.coords.longitude}` : 
-                'Location: Unknown - analyze for general industrial safety standards';
+            const locationContext = 'Location: Unknown - analyze for general industrial safety standards';
 
             const prompt = `You are an expert industrial safety and compliance analyst. Analyze the factory video and generate a comprehensive forensics report in the exact JSON format specified below.
 

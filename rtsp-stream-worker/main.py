@@ -66,7 +66,7 @@ class RemuxServer:
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Config file not found: {config_path}")
 
-        local_mediamtx_path = '/usr/local/bin/mediamtx'
+        local_mediamtx_path = 'C:\\Users\\natha\\OneDrive\\Desktop\\Coding\\Projects\\Consulting\\TwelveLabs\\nvidia_gtc\\rtsp-stream-worker\\mediamtx\\mediamtx.exe'
 
         if not os.path.exists(local_mediamtx_path):
             raise FileNotFoundError(f"MediaMTX executable not found: {local_mediamtx_path}")
@@ -257,13 +257,33 @@ class RTSPStreamManager:
             mediamtx_url = f'rtsp://127.0.0.1:8554/{self.serial_number}'
 
             ffmpeg_command = [
-                'ffmpeg', '-re', '-fflags', '+genpts', '-stream_loop', '-1', '-i', self.video_file_path,
-                '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2', 
-                '-c:a', 'aac', '-b:a', '128k', '-ar', '44100',
-                '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency',
-                '-f', 'rtsp', '-rtsp_transport', 'tcp', mediamtx_url
+                'ffmpeg',
+
+                # --- Input & Performance Optimizations ---
+                '-hide_banner', '-loglevel', 'error',    # Suppress verbose logs
+                '-analyzeduration', '500K',             # Analyze only 0.5 seconds of the video to start fast
+                '-probesize', '500K',                   # Limit input probing to 500KB
+                '-hwaccel', 'cuda',
+                '-re', '-stream_loop', '-1', '-i', self.video_file_path,
+
+                # --- Video & Audio Processing ---
+                '-vf', 'hwupload_cuda,scale_cuda=1280:720:format=nv12',
+                '-c:v', 'h264_nvenc',
+                '-preset', 'p2',                         # p1=fastest, p7=best quality. 'p2' is a great balance for speed.
+                '-tune', 'ull',                          # Tune for ultra low latency
+                '-zerolatency', '1',                     # Further reduces latency
+                '-g', '30',                              # Set a keyframe every 30 frames (good for 30fps video)
+                '-b:v', '1000k',
+                '-bufsize', '1000k',                     # Buffer size, helps with stream stability
+                '-maxrate', '1500k',                     # Set a max bitrate to prevent spikes
+                '-c:a', 'copy',
+
+                # --- Output ---
+                '-f', 'rtsp',
+                '-rtsp_transport', 'tcp',
+                mediamtx_url
             ]
-        
+
             self.ffmpeg_process = await asyncio.create_subprocess_exec(
                 *ffmpeg_command,
                 stdout=asyncio.subprocess.PIPE,
@@ -272,7 +292,7 @@ class RTSPStreamManager:
             )
 
             asyncio.create_task(self._log_stream(self.ffmpeg_process.stdout, '[FFMPEG]'))
-            #asyncio.create_task(self._log_stream(self.ffmpeg_process.stderr, '[FFMPEG]'))
+            asyncio.create_task(self._log_stream(self.ffmpeg_process.stderr, '[FFMPEG]'))
 
             await asyncio.sleep(2)
 

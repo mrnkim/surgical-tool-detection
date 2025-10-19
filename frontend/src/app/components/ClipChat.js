@@ -43,34 +43,12 @@ export default function ClipChat({ videoId }) {
         await callAssistant(message.trim());
     }
 
-    function getGeolocation() {
-        if (navigator.geolocation) {
-            return new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => resolve(position),
-                    (error) => reject(error),
-                    { timeout: 10000, enableHighAccuracy: false }
-                );
-            });
-        }
-        return Promise.resolve(null);
-    }
-
     async function callAssistant(message) {
         setIsLoading(true);
 
         // add temporary typing indicator
         const typingId = Date.now();
         setChatHistory(prev => [...prev, { role: 'assistant', text: '', date: Date.now(), typing: true, _id: typingId }]);
-
-        let geolocation = null;
-        try {
-            geolocation = await getGeolocation();
-            console.log('Geolocation:', geolocation);
-        } catch (error) {
-            console.warn('Geolocation error:', error);
-            // Continue without geolocation data
-        }
 
         try {
             const prompt = `You are Jade, an expert safety and compliance officer. 
@@ -79,7 +57,7 @@ export default function ClipChat({ videoId }) {
 
             The user asks: ${message};
             
-            The user's geolocation is: ${geolocation.coords.latitude}, ${geolocation.coords.longitude};
+            The user's geolocation is unknown please reference general safety and compliance standards.
 
             If the user asks about safety, compliance, or improvements, you should always reference the user's geolocation and the laws in that area when providing your response.
             Do not mention the coordinates, just the location and city.

@@ -16,3 +16,5 @@
 /rtsp-stream-worker/preset
 
 __pycache__*
+
+/media-autobuild_suite
